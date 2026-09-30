@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown Viewer</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<style>
+  body { margin: 0; display: grid; grid-template-rows: auto 1fr; height: 100vh; font-family: system-ui, sans-serif; }
+  header { display: flex; gap: .5rem; padding: .5rem; border-bottom: 1px solid #8884; }
+  main { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  textarea { font: 14px/1.5 ui-monospace, monospace; padding: 1rem; border: 0; border-right: 1px solid #8884; resize: none; background: transparent; color: inherit; }
+  .markdown-body { padding: 1rem 2rem; overflow: auto; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
+  @media (prefers-color-scheme: dark) { body { background: #0d1117; color: #e6edf3; } }
+</style>
+</head>
+<body>
+<header>
+  <label>Open file <input type="file" id="file" accept=".md,.markdown,.txt,text/*"></label>
+</header>
+<main>
+  <textarea id="src" aria-label="Markdown source" spellcheck="false"></textarea>
+  <article id="out" class="markdown-body"></article>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked-footnote@1/dist/index.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+<script>
+  marked.use({ gfm: true }, markedFootnote());
+  const src = document.getElementById('src'), out = document.getElementById('out');
+
+  function render() {
+    // Raw HTML in markdown is allowed (it's part of the spec) but sanitized.
+    out.innerHTML = DOMPurify.sanitize(marked.parse(src.value));
+    out.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+    try { localStorage.md = src.value; } catch {}
+  }
+
+  document.getElementById('file').onchange = async e => {
+    const f = e.target.files[0];
+    if (f) { src.value = await f.text(); render(); }
+  };
+  src.oninput = render;
+
+  let saved; try { saved = localStorage.md; } catch {}
+  src.value = saved ?? `# Markdown Viewer
+
+## Emphasis
+*italic* **bold** ***both*** ~~strike~~ \`code\`
+
+## Lists
+1. ordered
+   - nested
+- [x] task done
+- [ ] task todo
+
+## Table
+| Left | Center | Right |
+|:-----|:------:|------:|
+| a    |   b    |     c |
+
+## Code
+\`\`\`js
+const x = 1;
+\`\`\`
+
+> Blockquote
+>> nested
+
+Link: [example](https://example.com) · autolink https://example.com
+
+Footnote[^1].
+
+---
+
+<details><summary>Raw HTML</summary>Works.</details>
+
+[^1]: The note.
+`;
+  render();
+</script>
+</body>
+</html>

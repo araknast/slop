@@ -1,0 +1,3 @@
+#!/bin/sh
+d="$(dirname "$(readlink -f "$0")")"
+exec "$d/.venv/bin/python" "$d/mdview.py" "$@"

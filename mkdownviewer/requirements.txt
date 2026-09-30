@@ -1,0 +1,6 @@
+PyQt6
+PyQt6-WebEngine
+markdown-it-py>=4.1
+mdit-py-plugins>=0.6
+linkify-it-py
+pygments
