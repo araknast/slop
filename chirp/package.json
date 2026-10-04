@@ -13,7 +13,8 @@
     "test": "npm test -w server",
     "test:client": "npm test -w client",
     "test:e2e": "playwright test",
-    "test:all": "npm test -w server && npm test -w client && playwright test"
+    "test:all": "npm test -w server && npm test -w client && playwright test",
+    "docs:screenshots": "playwright test visual.spec && cp e2e/screenshots/desktop-*.png e2e/screenshots/mobile-*.png docs/screenshots/"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
