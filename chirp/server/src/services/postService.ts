@@ -109,6 +109,11 @@ async function pushFeed(id: number) {
   });
 }
 
+function paginate(ids: number[], limit: number) {
+  const page = ids.slice(0, limit);
+  return { ids: page, nextCursor: ids.length > limit ? page[page.length - 1] : null };
+}
+
 /** Global feed, newest first. `before` is an exclusive id cursor. */
 export async function getFeed(limit: number, before?: number): Promise<{ ids: number[]; nextCursor: number | null }> {
   const max = before ? `(${before}` : '+inf';
@@ -126,9 +131,7 @@ export async function getFeed(limit: number, before?: number): Promise<{ ids: nu
     ids = rows.map((r) => Number(r.id));
     if (!before) void warmFeed();
   }
-  const hasMore = ids.length > limit;
-  const page = ids.slice(0, limit);
-  return { ids: page, nextCursor: hasMore ? page[page.length - 1] : null };
+  return paginate(ids, limit);
 }
 
 async function warmFeed() {
@@ -149,9 +152,7 @@ export async function getUserPosts(userId: number, limit: number, before?: numbe
     `SELECT id FROM posts WHERE user_id = ? AND parent_id IS NULL ${before ? 'AND id < ?' : ''} ORDER BY id DESC LIMIT ?`,
     before ? [userId, before, limit + 1] : [userId, limit + 1],
   );
-  const ids = rows.map((r) => Number(r.id));
-  const page = ids.slice(0, limit);
-  return { ids: page, nextCursor: ids.length > limit ? page[page.length - 1] : null };
+  return paginate(rows.map((r) => Number(r.id)), limit);
 }
 
 export async function getReplyIds(postId: number): Promise<number[]> {
@@ -166,8 +167,6 @@ export async function postExists(id: number): Promise<boolean> {
   const [rows] = await pool.query<RowDataPacket[]>('SELECT 1 FROM posts WHERE id = ?', [id]);
   return rows.length > 0;
 }
-
-export const getPostById = getPost;
 
 export async function deletePost(userId: number, id: number): Promise<boolean> {
   const affected = await withTx(async (c) => {
@@ -211,7 +210,7 @@ async function invalidateReposts(postId: number) {
 }
 
 export async function repost(userId: number, postId: number): Promise<number> {
-  const id = await withTx(async (c) => {
+  const r = await withTx(async (c) => {
     const [orig] = await c.query<RowDataPacket[]>('SELECT id, repost_of_id FROM posts WHERE id = ? FOR UPDATE', [postId]);
     if (!orig[0]) throw Object.assign(new Error('Post not found'), { statusCode: 404 });
     const target = orig[0].repost_of_id ? Number(orig[0].repost_of_id) : postId; // reposting a repost reposts the original
@@ -220,21 +219,21 @@ export async function repost(userId: number, postId: number): Promise<number> {
     await c.query('UPDATE posts SET repost_count = repost_count + 1 WHERE id = ?', [target]);
     return { id: res.insertId, target };
   });
-  await refresh(id.target);
-  await invalidateReposts(id.target);
-  if (id.id) await pushFeed(id.id);
-  return id.id;
+  await refresh(r.target);
+  await invalidateReposts(r.target);
+  if (r.id) await pushFeed(r.id);
+  return r.id;
 }
 
 export async function unrepost(userId: number, postId: number): Promise<void> {
-  const rows = await withTx(async (c) => {
+  const repostId = await withTx(async (c) => {
     const [r] = await c.query<RowDataPacket[]>('SELECT id FROM posts WHERE user_id = ? AND repost_of_id = ? FOR UPDATE', [userId, postId]);
     if (!r[0]) return null;
     await c.query('DELETE FROM posts WHERE id = ?', [r[0].id]);
     await c.query('UPDATE posts SET repost_count = GREATEST(repost_count - 1, 0) WHERE id = ?', [postId]);
     return Number(r[0].id);
   });
-  if (rows) await safe(() => redis.zrem(FEED_KEY, String(rows)));
-  await refresh(postId, ...(rows ? [rows] : []));
+  if (repostId) await safe(() => redis.zrem(FEED_KEY, String(repostId)));
+  await refresh(postId, ...(repostId ? [repostId] : []));
   await invalidateReposts(postId);
 }

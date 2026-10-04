@@ -4,7 +4,6 @@ import { config } from '../config.js';
 export const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: 1,
   enableOfflineQueue: false,
-  lazyConnect: false,
 });
 redis.on('error', () => {}); // cache is best-effort; MySQL is authoritative
 
