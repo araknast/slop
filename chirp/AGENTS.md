@@ -19,7 +19,7 @@ Out of scope for v1 (do not assume they exist): follows / home timeline, realtim
 Run from the repo root.
 
 ```bash
-docker compose up -d     # MySQL :3306, Redis :6379. On a Debian apt install the command is `docker-compose`, and may need `sudo`
+docker compose up -d     # MySQL :3307, Redis :6379. On a Debian apt install the command is `docker-compose`, and may need `sudo`
 npm install
 npm run migrate          # applies server/migrations/*.sql, tracked in the _migrations table
 npm run dev              # API :3001 + client :5173 (Vite proxies /api -> :3001)

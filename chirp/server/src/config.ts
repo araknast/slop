@@ -1,6 +1,6 @@
 export const config = {
   port: Number(process.env.PORT ?? 3001),
-  mysqlUrl: process.env.MYSQL_URL ?? 'mysql://chirp:chirppass@127.0.0.1:3306/chirp',
+  mysqlUrl: process.env.MYSQL_URL ?? 'mysql://chirp:chirppass@127.0.0.1:3307/chirp',
   redisUrl: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379',
   jwtSecret: process.env.JWT_SECRET ?? 'dev-secret-change-me',
   clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
