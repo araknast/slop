@@ -1,5 +1,5 @@
 import { AnimatePresence, m as motion } from 'framer-motion';
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Post } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -22,7 +22,9 @@ const HEART = 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8
 const REPOST = 'M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3';
 const REPLY = 'M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z';
 
-function PostCard({ post, index = 0, detail = false }: { post: Post; index?: number; detail?: boolean }) {
+/** `animate`: play the entrance animation. Read once at mount, so virtualised cards that remount while scrolling stay still. */
+function PostCard({ post, index = 0, detail = false, animate = true }: { post: Post; index?: number; detail?: boolean; animate?: boolean }) {
+  const rise = useRef(animate).current;
   const { user } = useAuth();
   const nav = useNavigate();
   const { target, like, repost, remove } = usePostActions(post);
@@ -30,7 +32,7 @@ function PostCard({ post, index = 0, detail = false }: { post: Post; index?: num
   const reposted = !!post.repostedByMe;
 
   return (
-    <article className="post-wrap" style={{ '--i': Math.min(index, 8) } as React.CSSProperties}>
+    <article className={rise ? 'post-wrap rise' : 'post-wrap'} style={{ '--i': Math.min(index, 8) } as React.CSSProperties}>
       <Tilt max={detail ? 0 : 3} className="post glass">
         {post.repostOf && (
           <div className="repost-line"><Icon d={REPOST} /> <Link to={`/u/${post.author.username}`}>{post.author.displayName}</Link> reposted</div>

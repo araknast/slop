@@ -114,7 +114,10 @@ test.describe('posting', () => {
     }
     await page.reload();
     await expect(page.locator('.post').first()).toBeVisible();
-    await page.mouse.wheel(0, 20000);
-    await expect(page.locator('.post', { hasText: `bulk ${username} 0` })).toBeVisible({ timeout: 10_000 });
+    // the feed is windowed: older posts are only mounted once scrolled near, so keep scrolling until the oldest shows
+    await expect(async () => {
+      await page.mouse.wheel(0, 20000);
+      await expect(page.locator('.post', { hasText: `bulk ${username} 0` })).toBeVisible({ timeout: 700 });
+    }).toPass({ timeout: 15_000 });
   });
 });

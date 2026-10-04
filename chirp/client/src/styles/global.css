@@ -125,10 +125,16 @@ input:focus, textarea:focus { outline: none; border-color: var(--violet); box-sh
 .warn-text { color: #fbbf24; font-size: 13px; } .over-text { color: #ff4d6d; font-size: 13px; }
 
 /* ---------- Post ---------- */
-.post-wrap { perspective: 1000px; animation: rise 0.5s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 0.04s); }
+.post-wrap { perspective: 1000px; }
+.post-wrap.rise { animation: rise 0.5s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 0.04s); }
 @keyframes rise { from { opacity: 0; transform: translateY(24px); } }
-.post { padding: 16px 18px; cursor: pointer; transition: border-color 0.25s; }
-.post:hover { border-color: rgba(139,92,246,0.35); }
+.post { padding: 16px 18px; cursor: pointer; border-color: transparent; }
+/* The 1px border is drawn by two pseudo-elements that crossfade by opacity (compositor) instead of transitioning
+   border-color (re-rasterises the whole card and its shadow every frame). Same colours at rest and on hover. */
+.post::before, .post::after { content: ''; position: absolute; inset: -1px; border: 1px solid var(--stroke); border-radius: inherit; pointer-events: none; transition: opacity 0.25s; }
+.post::after { border-color: rgba(139,92,246,0.35); opacity: 0; }
+.post:hover::before { opacity: 0; }
+.post:hover::after { opacity: 1; }
 .repost-line { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; padding: 0 0 8px 54px; }
 .repost-line a:hover { text-decoration: underline; }
 .post-body { display: flex; gap: 14px; }
@@ -150,8 +156,10 @@ input:focus, textarea:focus { outline: none; border-color: var(--violet); box-sh
 @media (hover: none) { .del { opacity: 0.7; } }
 
 /* ---------- Loading ---------- */
-.skeleton { height: 120px; background-image: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
-@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+/* Shimmer = a wide repeating gradient slid by transform (background-position can't run on the compositor). */
+.skeleton { height: 120px; position: relative; overflow: hidden; background-image: none; }
+.skeleton::before { content: ''; position: absolute; top: 0; bottom: 0; left: -400%; width: 600%; background-image: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%); background-size: 33.3333% 100%; will-change: transform; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { to { transform: translateX(66.6667%); } }
 .boot { display: grid; place-items: center; height: 100vh; }
 .boot-orb { width: 54px; height: 54px; border-radius: 50%; background: var(--grad); filter: blur(2px); animation: pulse 1.2s ease-in-out infinite alternate; }
 @keyframes pulse { to { transform: scale(1.4); opacity: 0.5; } }
