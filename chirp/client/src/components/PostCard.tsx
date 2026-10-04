@@ -1,4 +1,5 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m as motion } from 'framer-motion';
+import { memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Post } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
@@ -21,7 +22,7 @@ const HEART = 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8
 const REPOST = 'M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3';
 const REPLY = 'M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z';
 
-export default function PostCard({ post, index = 0, detail = false }: { post: Post; index?: number; detail?: boolean }) {
+function PostCard({ post, index = 0, detail = false }: { post: Post; index?: number; detail?: boolean }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const { target, like, repost, remove } = usePostActions(post);
@@ -29,12 +30,7 @@ export default function PostCard({ post, index = 0, detail = false }: { post: Po
   const reposted = !!post.repostedByMe;
 
   return (
-    <motion.article
-      className="post-wrap"
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: Math.min(index, 8) * 0.04, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <article className="post-wrap" style={{ '--i': Math.min(index, 8) } as React.CSSProperties}>
       <Tilt max={detail ? 0 : 3} className="post glass">
         {post.repostOf && (
           <div className="repost-line"><Icon d={REPOST} /> <Link to={`/u/${post.author.username}`}>{post.author.displayName}</Link> reposted</div>
@@ -66,6 +62,8 @@ export default function PostCard({ post, index = 0, detail = false }: { post: Po
           </div>
         </div>
       </Tilt>
-    </motion.article>
+    </article>
   );
 }
+
+export default memo(PostCard);

@@ -48,7 +48,9 @@ test.describe('visual', () => {
     const info = await page.evaluate(() => {
       const cs = (sel: string) => getComputedStyle(document.querySelector(sel)!);
       return {
-        blur: cs('.post').backdropFilter || cs('.post').getPropertyValue('-webkit-backdrop-filter'),
+        // only chrome that content scrolls under keeps backdrop-filter; cards must not (perf, see global.css)
+        blur: cs('.topbar').backdropFilter || cs('.topbar').getPropertyValue('-webkit-backdrop-filter'),
+        postBlur: cs('.post').backdropFilter,
         willChange: cs('.aurora .layer').willChange,
         position: cs('.aurora').position,
         tiltWill: cs('.tilt').willChange,
@@ -56,6 +58,7 @@ test.describe('visual', () => {
       };
     });
     expect(info.blur).toContain('blur');
+    expect(info.postBlur).toBe('none');
     expect(info.willChange).toBe('transform');
     expect(info.position).toBe('fixed');
     expect(info.tiltWill).toBe('transform');
@@ -87,8 +90,8 @@ test.describe('visual', () => {
     await page.mouse.move(100, 100);
     await page.mouse.move(1100, 700);
     await page.waitForTimeout(500);
-    const t = await page.evaluate(() => [...document.querySelectorAll('.aurora .layer')].map((el) => getComputedStyle(el).transform));
-    for (const m of t) expect(m === 'none' || new DOMMatrix(m).m41 === 0).toBeTruthy();
+    const x = await page.evaluate(() => [...document.querySelectorAll('.aurora .layer')].map((el) => { const t = getComputedStyle(el).transform; return t === 'none' ? 0 : new DOMMatrix(t).m41; }));
+    for (const m41 of x) expect(m41).toBe(0);
     await ctx.close();
   });
 });

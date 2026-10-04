@@ -31,40 +31,43 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .pad { padding: 48px 0; }
 .error { color: #ff7a93; font-size: 14px; }
 
-/* ---------- Aurora backdrop (compositor-only animation) ---------- */
-.aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--bg); contain: strict; }
-.aurora .layer, .aurora .grid { position: absolute; inset: -20% -10%; will-change: transform; transform: translateZ(0); }
-.blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.55; will-change: transform; transform: translateZ(0); }
-.b1 { width: 55vmax; height: 55vmax; left: -10%; top: -10%; background: radial-gradient(circle, #6d28d9, transparent 65%); animation: drift1 26s ease-in-out infinite alternate; }
-.b2 { width: 45vmax; height: 45vmax; right: -5%; top: 10%; background: radial-gradient(circle, #0891b2, transparent 65%); animation: drift2 32s ease-in-out infinite alternate; }
-.b3 { width: 40vmax; height: 40vmax; left: 20%; top: 55%; background: radial-gradient(circle, #be185d, transparent 65%); opacity: 0.4; animation: drift2 38s ease-in-out infinite alternate-reverse; }
-.b4 { width: 35vmax; height: 35vmax; right: 15%; top: 75%; background: radial-gradient(circle, #059669, transparent 65%); opacity: 0.35; animation: drift1 30s ease-in-out infinite alternate-reverse; }
+/* ---------- Aurora backdrop (compositor-only; see Aurora.tsx) ---------- */
+.aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--bg); contain: strict; --k: 1; }
+.aurora .layer { position: absolute; inset: -20% -10%; will-change: transform; transform: translateZ(0); }
+/* Blob gradients (Gaussian-baked, replacing filter: blur(70px)) and sizes are set by Aurora.tsx. */
+.blob { position: absolute; will-change: transform; }
+.b1 { width: 55vmax; height: 55vmax; left: -10%; top: -10%; opacity: 0.55; animation: drift1 26s ease-in-out infinite alternate; }
+.b2 { width: 45vmax; height: 45vmax; right: -5%; top: 10%; opacity: 0.55; animation: drift2 32s ease-in-out infinite alternate; }
+.b3 { width: 40vmax; height: 40vmax; left: 20%; top: 55%; opacity: 0.4; animation: drift2 38s ease-in-out infinite alternate-reverse; }
+.b4 { width: 35vmax; height: 35vmax; right: 15%; top: 75%; opacity: 0.35; animation: drift1 30s ease-in-out infinite alternate-reverse; }
 @keyframes drift1 { to { transform: translate3d(12vmax, 8vmax, 0) scale(1.15); } }
 @keyframes drift2 { to { transform: translate3d(-10vmax, 12vmax, 0) scale(0.9); } }
-.grid {
-  background-image: linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: radial-gradient(ellipse at 50% 30%, #000 10%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse at 50% 30%, #000 10%, transparent 70%);
+/* Pre-rendered grid (lines + elliptical mask). Covers the viewport plus the 200px parallax travel. */
+.grid { position: absolute; left: 0; top: 0; width: 100%; height: calc(100% + 200px); will-change: transform; transform: translateZ(0); }
+/* --k pre-scales brightness to compensate the grain layer (Aurora.tsx). */
+.mote { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff; opacity: calc(0.5 * var(--k)); box-shadow: 0 0 10px 2px rgba(139,92,246,0.8); animation: twinkle 6s ease-in-out infinite; will-change: opacity; }
+@keyframes twinkle { 50% { opacity: calc(0.08 * var(--k)); } }
+/* Film grain + vignette in one static layer. */
+.shade { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Scroll parallax on the compositor (no JS). Browsers without scroll timelines use the handler in Aurora.tsx. */
+@supports (animation-timeline: scroll()) {
+  .aurora .l1, .aurora .l2, .aurora .l3, .aurora .grid { animation: parallax linear both; animation-timeline: scroll(root block); animation-range: 0px 3000px; }
+  .aurora .l1 { --py: -120px; } .aurora .l2 { --py: -320px; } .aurora .l3 { --py: -620px; } .aurora .grid { --py: -200px; }
+  @keyframes parallax { to { transform: translate3d(0, var(--py), 0); } }
 }
-.mote { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff; opacity: 0.5; box-shadow: 0 0 10px 2px rgba(139,92,246,0.8); animation: twinkle 6s ease-in-out infinite; will-change: opacity; }
-@keyframes twinkle { 50% { opacity: 0.08; } }
-.noise {
-  position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-.vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55)); }
 
-/* ---------- Glass + tilt ---------- */
+/* ---------- Glass + tilt ----------
+   .glass has no backdrop-filter: it is re-blurred every frame over the animated aurora, which is by far the
+   most expensive thing on a weak GPU. Only chrome that content scrolls under (.topbar, mobile .rail) keeps it. */
 .glass {
   background: linear-gradient(180deg, var(--glass-hi), transparent 40%), var(--glass);
   border: 1px solid var(--stroke); border-radius: 20px;
-  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
   box-shadow: 0 10px 40px -12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
 }
-@supports not (backdrop-filter: blur(1px)) { .glass { background: rgba(20, 20, 34, 0.92); } }
-.tilt { position: relative; transform-style: preserve-3d; will-change: transform; }
-.tilt-glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+.tilt { position: relative; will-change: transform; }
+.tilt-glow { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+.tilt-glow i { position: absolute; left: -420px; top: -420px; width: 840px; height: 840px; background: radial-gradient(420px circle at center, rgba(255,255,255,0.09), transparent 60%); }
+.tilt:hover .tilt-glow i { will-change: transform; }
 .tilt:hover .tilt-glow { opacity: 1; }
 
 /* ---------- Buttons / inputs ---------- */
@@ -95,13 +98,13 @@ input:focus, textarea:focus { outline: none; border-color: var(--violet); box-sh
 .rail-user-text b, .rail-user-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .column { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .stack { display: flex; flex-direction: column; gap: 14px; }
-.topbar { background: rgba(14,14,26,0.86); position: sticky; top: 12px; z-index: 5; padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-radius: 16px; }
+.topbar { background: rgba(14,14,26,0.86); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); position: sticky; top: 12px; z-index: 5; padding: 14px 20px; display: flex; align-items: center; gap: 14px; border-radius: 16px; }
 .topbar h2 { font-size: 18px; font-weight: 700; }
 .back { font-size: 20px; color: var(--muted); }
 .back:hover { color: var(--text); }
 @media (max-width: 800px) {
   .shell { grid-template-columns: minmax(0, 1fr); padding-bottom: 96px; }
-  .rail { background: rgba(14,14,26,0.9); position: fixed; z-index: 20; inset: auto 12px 12px 12px; top: auto; height: auto; flex-direction: row; align-items: center; padding: 10px 14px; border-radius: 18px; }
+  .rail { background: rgba(14,14,26,0.9); -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); position: fixed; z-index: 20; inset: auto 12px 12px 12px; top: auto; height: auto; flex-direction: row; align-items: center; padding: 10px 14px; border-radius: 18px; }
   .rail nav { flex-direction: row; }
   .rail-user-text, .brand { display: none; }
 }
@@ -122,7 +125,8 @@ input:focus, textarea:focus { outline: none; border-color: var(--violet); box-sh
 .warn-text { color: #fbbf24; font-size: 13px; } .over-text { color: #ff4d6d; font-size: 13px; }
 
 /* ---------- Post ---------- */
-.post-wrap { perspective: 1000px; }
+.post-wrap { perspective: 1000px; animation: rise 0.5s var(--ease) backwards; animation-delay: calc(var(--i, 0) * 0.04s); }
+@keyframes rise { from { opacity: 0; transform: translateY(24px); } }
 .post { padding: 16px 18px; cursor: pointer; transition: border-color 0.25s; }
 .post:hover { border-color: rgba(139,92,246,0.35); }
 .repost-line { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; padding: 0 0 8px 54px; }
@@ -179,5 +183,6 @@ input:focus, textarea:focus { outline: none; border-color: var(--violet); box-sh
 .row { display: flex; gap: 10px; justify-content: flex-end; }
 
 @media (prefers-reduced-motion: reduce) {
+  .aurora .layer, .aurora .grid { animation: none !important; }
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }

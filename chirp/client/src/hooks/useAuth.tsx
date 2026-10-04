@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, type User } from '../api/client';
 
@@ -16,10 +16,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     staleTime: Infinity,
     retry: false,
   });
-  const setUser = (u: User | null) => {
+  const setUser = useCallback((u: User | null) => {
     qc.setQueryData(['me'], u);
     qc.invalidateQueries({ queryKey: ['feed'] });
-  };
-  return <Ctx.Provider value={{ user: data ?? null, loading: isLoading, setUser }}>{children}</Ctx.Provider>;
+  }, [qc]);
+  const value = useMemo(() => ({ user: data ?? null, loading: isLoading, setUser }), [data, isLoading, setUser]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 export const useAuth = () => useContext(Ctx);

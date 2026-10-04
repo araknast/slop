@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { m as motion, useScroll, useTransform } from 'framer-motion';
 import { api } from '../api/client';
 import { useAuth } from '../hooks/useAuth';
 import Tilt from '../components/Tilt';

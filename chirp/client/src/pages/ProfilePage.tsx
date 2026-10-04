@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { m as motion, useScroll, useTransform } from 'framer-motion';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Avatar from '../components/Avatar';

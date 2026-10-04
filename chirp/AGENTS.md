@@ -83,12 +83,19 @@ MySQL is authoritative; Redis is best-effort. Every Redis call goes through `saf
 - `hooks/useAuth.tsx`: `['me']` query; 401 maps to `user = null`. `setUser` also invalidates feeds.
 - `hooks/usePostActions.ts`: optimistic like/repost/delete. `patchAll` rewrites every cached shape (`['feed']`, `['userPosts']`, `['post']`) and also patches a repost's embedded original. On error it rolls back from a snapshot. Keep new post-related queries under those key prefixes so they are patched too.
 - `App.tsx`: logged-in routes render inside `Layout`; logged-out users only see `AuthPage` and everything else redirects to `/`.
-- `components/`: `Aurora` (fixed parallax backdrop), `Tilt` (pointer tilt + highlight), `PostCard`, `Composer`, `Feed` (infinite scroll via IntersectionObserver), `Layout` (sidebar, becomes a floating bottom bar under 800px), `Avatar`.
+- `components/`: `Aurora` (fixed parallax backdrop; maths in `auroraMath.ts`), `Tilt` (pointer tilt + highlight), `PostCard` (memoised), `Composer`, `Feed` (infinite scroll via IntersectionObserver), `Layout` (sidebar, becomes a floating bottom bar under 800px), `Avatar`.
+- framer-motion is used through `LazyMotion` (`main.tsx`, features in `lazyFeatures.ts`), so import `m` (aliased `motion`), never the full `motion` component, or `strict` will throw. Its engine loads after first paint.
 
 ### Motion and GPU rules
-- Animate **only `transform` and `opacity`** (and filters on already-promoted layers). Never animate `top/left/width/height/margin`; it causes layout and kills the compositor path.
-- Animated layers set `will-change: transform` (and `translateZ(0)` where needed). Parallax uses Framer Motion `useScroll` + `useTransform` / `useSpring`.
-- Respect `prefers-reduced-motion`: `Aurora` and `Tilt` check `useReducedMotion()`, and `global.css` has a reduce media query. New motion must honour it.
+Perf budget: target is a ~2014 laptop, so compositor passes, layer count and main-thread frames matter more than JS micro-costs. The trace that drove this (CDP tracing, `VizCompositorThread` / `SoftwareRenderer::DoDrawQuad`) showed the cost was full-screen translucent layers, filter passes and a `mix-blend-mode` render surface, not JS.
+
+- Animate **only `transform` and `opacity`**. Never animate `top/left/width/height/margin`.
+- **No `backdrop-filter` on `.glass` cards** (and no `filter: blur`, no `mix-blend-mode`, no `mask-image` on big layers). A backdrop blur over the animated aurora is re-run every frame per card. Only chrome that content scrolls under keeps it: `.topbar` and the mobile `.rail`. The visual spec asserts `.post` has none.
+- `Aurora.tsx` is a handful of layers: Gaussian-baked blob gradients (the closed-form blurred profile replaces `filter: blur(70px)`, cut where it rounds to 0 in 8 bit), a pre-rendered grid canvas, and ONE static black-alpha canvas for grain + vignette. Grain used to be overlay-blended; on dark pixels that is multiplicative, so we darken by `f/fmax` and pre-scale the base colours by `fmax` (`--k`). Keep it a normal-blend layer.
+- Drift, twinkle and scroll parallax are CSS animations (scroll-driven via `animation-timeline: scroll()` where supported), so they run on the compositor with no JS. JS only runs the pointer spring while the pointer moves, plus a scroll handler fallback for browsers without scroll timelines. Do not reintroduce per-frame JS that writes styles while idle or scrolling: every style write forces a main-thread frame and a layer-tree commit.
+- `Tilt` is plain DOM + one rAF loop that exists only while the pointer is over a card; highlight moves by `transform`. No framer motion values per card. Post entrance is a CSS `rise` animation (`--i` stagger).
+- Cards keep `will-change: transform` (they are composited once and then only moved; without it text rasterises differently and shadows are re-rasterised on hover). Do not add `transform-style: preserve-3d` to `.tilt`: it breaks hit-testing of children while tilted.
+- Respect `prefers-reduced-motion`: `Tilt` and `Aurora` check it, and `global.css` has a reduce media query. New motion must honour it.
 - **Do not wrap `<Routes>` in `<AnimatePresence mode="wait">`**: it hung waiting for an exit animation and left a blank screen after log out then log in. Use entrance animations instead.
 - **Do not use `content-visibility: auto` on feed items**: its height guess made the scroll height jump while scrolling.
 - Long text must wrap (`overflow-wrap: anywhere`); there must be no horizontal scroll at any width (the visual spec asserts this).
@@ -104,6 +111,7 @@ Tokens are CSS variables at the top of `global.css`: near-black background, viol
   - Do not look for another user's post in the **global feed**; it may be beyond the first page. Open the author's profile (`/u/:username`) instead.
   - After `post()`, the helper waits for the composer to clear. Keep that; without it, a stale identical post lets the next step race the pending mutation.
   - Locators: use `getByRole('link', { name: 'Profile', exact: true })` (author names can contain "Profile").
+  - Perf changes must not change pixels: compare against a build of the previous commit (freeze animations at t=0 with `document.getAnimations()`, same viewport and scroll) and look at the diff; expect sub-4/255 differences only.
   - The `visual` spec writes screenshots to `e2e/screenshots/` and also asserts: no horizontal overflow, `backdrop-filter` blur present, GPU hints set, aurora layers move at different speeds on scroll, and reduced motion freezes them. When you change the UI, run it and **look at the screenshots**.
 
 ## Gotchas
